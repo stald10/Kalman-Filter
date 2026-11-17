@@ -17,6 +17,6 @@ function [x,P]=ukf(f,x,P,h,z,Q,R)
   P12 = X2*diag(Wc)*Z2.';
   K = P12*inv(P2);
   x = x1 + K*(z-z1);
-  P = P1 - K*P2*K.';
+  P = P1 - K*P12';
 endfunction
 

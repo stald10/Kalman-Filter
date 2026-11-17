@@ -1,4 +1,6 @@
+clear;
 n=3; %number of state
+randn('seed', 42);
 q=0.1; %std of process
 r=0.1; %std of measurement
 Q=q^2*eye(n); % covariance of process
@@ -17,7 +19,7 @@ z = h(s) + r*randn; % measurments
 sV(:,k)= s; % save actual state
 zV(k) = z; % save measurment
 [x, P] = ukf(f,x,P,h,z,Q,R);
-xV(:,k) = x; % save estimate
+xV(:,k) = x % save estimate
 s = f(s) + q*randn(3,1); % update process
 end
 for k=1:3 % plot results
