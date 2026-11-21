@@ -17,8 +17,8 @@ alp = -(J3-J2)/J1;
 bet = -(J1-J3)/J2;
 gam = -(J2-J1)/J3;
 
-N=400;
-M=60;
+N=200;
+M=50;
 
 f_dot=@(x,u)[
           alp*x(2)*x(3) + u(1)/J1;
@@ -35,14 +35,13 @@ sVr = zeros(n,N,M);
 for j = 1:M
   s=[0.3;0.8;1];
   x=s+q*randn(n,1);
-  P = eye(n);
+  P = 0.1*eye(n);
   xV = zeros(n,N);
   sV = zeros(n,N);
   zV = zeros(m,N);
   for k=1:N
-    tc = (k-1)*dt;
 
-    u = [0.2*sin(2*tc); -0.1*cos(tc); 0.15];
+    u = [0.2; 0.1; 0.15];
 
     f = @(x)rk4(f_dot,x,u,dt);
     z = h(s) + r*randn(m,1);
@@ -58,9 +57,10 @@ for j = 1:M
 endfor
 
 arm = ARMSE(M,N,sVr,xVr)
-
+titles = {"Движение спутника; Уравнения Эйлера \n w(1) - угловая скорость", "w(2)", "w(3)"};
 for k=1:3
 subplot(3,1,k)
-plot(1:N, sV(k,:), '-', 1:N, xV(k,:), '--')
-legend('Истинные значения','UKF')
+plot(1:N, sV(k,:), '-', 1:N, xV(k,:), '--', 1:N, zV(k,:), '---')
+title(titles(k));
+legend('Истинные значения','UKF','Зашумлённые данные')
 end

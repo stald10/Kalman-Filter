@@ -1,55 +1,103 @@
-Fk = [1.0,1.0; 0.0, 1.0];
-Bk = [0.0; 1.0];
+clear;
+n=3;
+m=3;
 
-Qk = 0.001*eye(2);
+q=0.01;
+r=0.1;
+Q=q^2*eye(n);
+R=r^2*eye(m);
 
-Rk = 25.0;
+dt = 0.01;
 
-Hk = [1.0,0.0];
+J1 = 0.5;
+J2 = 0.3;
+J3 = 0.1;
 
+alp = -(J3-J2)/J1;
+bet = -(J1-J3)/J2;
+gam = -(J2-J1)/J3;
 
-mu = 0;
-sigma = 5;
+N=200;
+M=50;
 
-truth = 100 + 3.0*(0:59);
+f_dot=@(x,u)[
+          alp*x(2)*x(3) + u(1)/J1;
+          bet*x(1)*x(3) + u(2)/J2;
+          gam*x(2)*x(1) + u(3)/J3
+      ];
 
-nk = normrnd(mu,sigma,1,length(truth));
+h=@(x)[x(1); x(2);x(3)]
 
-zk = truth + nk;
+w = [sqrt(3)/4; -sqrt(3); 1/sqrt(3)];
 
-xk = [zk(1);0.0];
+w1e = w(1);
+w2e = w(2);
+w3e = w(3);
 
-uk = 0.0;
+ue = -[J1 * alp * w2e * w3e;
+       J2 * bet * w1e * w3e;
+       J3 * gam * w1e * w2e];
 
-Pk = [25.0,0; 0.0, 100.0];
+A = [0,       alp*w3e,  alp*w2e;
+     bet*w1e, 0,        bet*w3e;
+     gam*w2e, gam*w1e,  0
+    ];
 
-err = [xk(1)];
+B = diag([1/J1,1/J2,1/J3]);
 
-for measurement  = zk(2:end)
-  xk = Fk * xk + Bk * uk;
-  Pk = Fk * Pk * Fk.' + Qk;
+Hk = eye(n);
 
-  yk = measurement  - Hk*xk;
+EM = expm([A,B; zeros(m,n+m)]*dt);
+Fk = EM(1:n,1:n);
+Bk = EM(1:n,n+1:end);
 
-  Sk = Hk*Pk*Hk.' + Rk;
+xVr = zeros(n,N,M);
+sVr = zeros(n,N,M);
 
-  Kk = Pk*Hk.'* inv(Sk);
+for j = 1:M
+  s=[0.3;0.8;1];
+  x=s+q*randn(n,1);
+  xk = x - w;
+  Pk = 0.1*eye(n);
+  xV = zeros(n,N);
+  sV = zeros(n,N);
+  zV = zeros(m,N);
+  for k=1:N
+    u = [0.2; 0.1; 0.15];
+    mu = u - ue;
+    f = @(x)rk4(f_dot,x,u,dt);
+    z = h(s) + r*randn(m,1);
+    sV(:,k)= s;
+    zV(:,k) = z;
 
-  xk = xk + Kk*yk;
+    xk = Fk * xk + Bk * mu;
+    Pk = Fk * Pk * Fk.' + Q;
 
-  Pk = (eye(2) - Kk*Hk)*Pk;
+    yk = (z-w) - Hk*xk;
+    Sk = Hk*Pk*Hk.' + R;
+    Kk = Pk*Hk.' / Sk;
 
-  err = [err,xk(1)];
+    xk = xk + Kk*yk;
+    Pk = (eye(n) - Kk*Hk)*Pk;
 
+    x = w + xk;
+    xV(:,k) = x;
+
+    s = f(s) +q*randn(n,1);
+
+  endfor
+  xVr(:,:,j) = xV;
+  sVr(:,:,j) = sV;
 endfor
-fprintf("Detection error: %.2f px\n", sqrt(mean((zk - truth) .^ 2)));
-fprintf("Kalman error: %.2f px\n", sqrt(mean((err - truth) .^ 2)));
-fprintf("Estimated velocity: %.2f px/frame\n", xk(2));
 
-
-tk = 1/6*(0:59);
-
-plot(tk,truth,"r-;Истинные данные;",tk, zk, "g-;Зашумлённые данные;",tk,err, "b-;Офильтрованные данные;");
+arm = ARMSE(M,N,sVr,xVr)
+titles = {"Движение спутника; Уравнения Эйлера \n w(1) - угловая скорость", "w(2)", "w(3)"};
+for k=1:3
+subplot(3,1,k)
+plot(1:N, sV(k,:), '-', 1:N, xV(k,:), '--', 1:N, zV(k,:), '---')
+title(titles(k));
+legend('Истинные значения','UKF','Зашумлённые данные')
+end
 
 
 
